@@ -96,6 +96,15 @@ class User extends Controller {
 }
 ```
 
+Composer
+```
+{
+    "require": {
+        "moca/moca": "dev-master"
+    }
+}
+```
+
 Project structure
 ```
 vendor/
