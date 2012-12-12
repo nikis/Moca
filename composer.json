@@ -1,5 +1,5 @@
 {
-    "name": "Moca",
+    "name": "moca/moca",
     "description": "Easy code scaling for Silex framework",
     "keywords": ["routing", "auto"],
     "homepage": "https://github.com/nikis/Moca",
