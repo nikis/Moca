@@ -4,7 +4,6 @@
     "keywords": ["routing", "auto"],
     "homepage": "https://github.com/nikis/Moca",
     "type": "library",
-    "license": "MIT",
     "authors": [
         {
             "name": "Nikolay Tsanov",
