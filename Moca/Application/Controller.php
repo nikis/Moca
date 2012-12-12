@@ -29,7 +29,7 @@ abstract class Controller implements ControllerProviderInterface {
 	protected $viewScope = null;
 	
 	/**
-	 * @param Application $app
+	 * @param Silex\Application $app
 	 */
 	public function connect(Application $app) {
 		$this->app = $app;
@@ -125,10 +125,14 @@ abstract class Controller implements ControllerProviderInterface {
 		foreach($route as $name) {
 			$methods = explode('_', $name);
 			if(count($methods) == 1) {
-				$this->collection->get($name, array($this, $name));
+				$method = 'GET';
+				$route = $name;
 			} else {
-				$this->collection->match($methods[1], array($this, $name))->method($methods[0]);
+				$method = $methods[0];
+				$route = implode('_', array_slice($methods, 1));
 			}
+			$this->collection->match($route, array($this, $name))->method($method);
+			$this->collection->match($route.'/', array($this, $name))->method($method);
 		}
 		
 		if(isset($this->app['twig'])) {
