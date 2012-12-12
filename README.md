@@ -8,7 +8,7 @@ Usage
 ```php
 <?php
 
-use Moca\Application;
+use Moca\Application\Controller;
 
 class Page extends Controller {
 	
@@ -54,7 +54,7 @@ Examples
 ```php
 <?php
 
-use Moca\Application;
+use Moca\Application\Controller;
 
 class Page extends Controller {
 	
@@ -72,7 +72,7 @@ Will load the template from the folder `View/Page/index.phtml`
 ```php
 <?php
 
-use Moca\Application;
+use Moca\Application\Controller;
 
 class Page extends Controller {
 	
@@ -86,7 +86,7 @@ Will load the template from the folder `View/Block/index.phtml`
 ```php
 <?php
 
-use Moca\Application;
+use Moca\Application\Controller;
 
 class User extends Controller {
 	
