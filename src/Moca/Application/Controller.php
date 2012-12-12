@@ -47,11 +47,14 @@ abstract class Controller implements ControllerProviderInterface {
 	protected function render($path, array $data=array()) {
 		if(!isset($this->app['twig'])) {
 			throw new Exception('Register Twig service provider before use views');
-		} else if(!isset($this->app['twig.options']['extension'])) {
-			$this->app['twig.options']['extension'] = '.phtml';
 		}
-		if(substr($path, strlen($this->app['twig.options']['extension'])*-1) != $this->app['twig.options']['extension']) {
-			$path .= $this->app['twig.options']['extension'];
+		if(!isset($this->app['twig.options']['extension'])) {
+			$extension = '.phtml';
+		} else {
+			$extension = $this->app['twig.options']['extension'];
+		}
+		if(substr($path, strlen($extension)*-1) != $extension) {
+			$path .= $extension;
 		}
 		return call_user_func_array(array($this->app['twig'], 'render'), array($path, $data));
 	}
