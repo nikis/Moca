@@ -132,7 +132,7 @@ abstract class Controller implements ControllerProviderInterface {
 				$route = $name;
 			} else {
 				$method = $methods[0];
-				$route = implode('_', array_slice($methods, 1));
+				$route = implode('/', array_slice($methods, 1));
 			}
 			$this->collection->match($route, array($this, $name))->method($method);
 			$this->collection->match($route.'/', array($this, $name))->method($method);
