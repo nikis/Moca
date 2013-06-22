@@ -124,12 +124,16 @@ class Provider extends PDO {
 	 * @param string or array $params
 	 * @return object or false
 	 */
-	public function fetchAll($query, $params=null) {
+	public function fetchAll($query, $params=null, $useKey=null) {
 		$data = array();
 		$stmt = $this->createStatement($query, $params);
 		$stmt->execute();
 		while($row = $stmt->fetch()) {
-			$data[] = $row;
+			if(null !== $useKey) {
+				$data[$row->{$useKey}] = $row;
+			} else {
+				$data[] = $row;
+			}
 		}
 		return $data;
 	}
@@ -148,11 +152,31 @@ class Provider extends PDO {
 	
 	/**
 	 * Insert data
+	 * You can provider _id or _id => 'primary_key' to retrieve last insert id and  You can also give _load fully load inserted row
 	 * @param string $tableName
 	 * @param array $data
 	 * @return integer
 	 */
-	public function insert($tableName, array $data, $onDuplicateKeyUpdate=null) {
+	public function insert($tableName, &$data, $onDuplicateKeyUpdate=null) {
+		$useId = false;
+		$autoload = false;
+		if(is_scalar($data)) {
+			throw new Exception('Inserted data shoud be array or object');
+		}
+		if(!is_array($data)) {
+			$data = (array)$data;
+		}
+		if(false !== $index = array_search('_id', $data)) {
+			$useId = 'id';
+			unset($data[$index]);
+		} else if(isset($data['_id'])) {
+			$useId = $data['_id'];
+			unset($data['_id']);
+		}
+		if(false !== $index = array_search('_load', $data)) {
+			$autoload = true;
+			unset($data[$index]);
+		} 
 		$query = 'INSERT INTO `'.$tableName.'` (`'.implode('`, `', array_keys($data)).'`) VALUES (:'.implode(', :', array_keys($data)).')';
 		if(null !== $onDuplicateKeyUpdate) {
 			$query .= ' ON DUPLICATE KEY UPDATE ';
@@ -172,6 +196,15 @@ class Provider extends PDO {
 		}
 		$stmt = $this->createStatement($query, $data);
 		$stmt->execute();
+		if($useId) {
+			$data[$useId] = $this->lastInsertId();
+			if($autoload) {
+				$data = $this->first($tableName, array(
+					$useId => $data[$useId]
+				));
+			}
+		}
+		$data = (object)$data;
 		return $stmt->rowCount();
 	}
 	
@@ -264,7 +297,7 @@ class Provider extends PDO {
 	public function getPagingResult($query, $params=null, $current, $max) {
 		$current = max(1, intval($current));
 		$offset = max(0, ($current - 1) * $max);
-		$query = preg_replace('/SELECT/i', 'SELECT SQL_CALC_FOUND_ROWS', $query);
+		$query = preg_replace('/^SELECT/i', 'SELECT SQL_CALC_FOUND_ROWS', $query);
 		$query .= ' LIMIT '.$offset.', '.$max;
 		$rows = $this->fetchAll($query, $params);
 		$total = $this->getFoundRows();
@@ -277,13 +310,13 @@ class Provider extends PDO {
 			'current' => $current,
 			'previous' => min($pages, max(1, $current - 1)),
 			'next' => min($pages, $current + 1),
-			'has' => array(),
+			'has' => array(
+				'previous' => $current > 1 && $ret['previous'] < $pages,
+				'next' => $ret['next'] < $pages
+			),
 			'rows' => $rows
 		);
-		$ret['has'] = (object)array(
-			'previous' => $current > 1 && $ret['previous'] < $pages,
-			'next' => $ret['next'] < $pages
-		);
+		$ret['has'] = (object)$ret['has'];
 		return (object)$ret;
 	}
 	
@@ -382,106 +415,49 @@ class Provider extends PDO {
 	}
 	
 	/**
-	 * Create relation between data sets
-	 * @param array|object $result
-	 * @param array $relation
-	 * @param array|string $query
+	 * Create relation between data
+	 * @param $result
+	 * @param string $pk
+	 * @param callback $cb
 	 * @example
-	 * 		$relation = array(
-	 * 			'primaryKey' => 'id', 		// What to read
-	 * 			'foreignKey' => 'user_id',	// How to map
-	 * 			'name' => 'details', 		// Where to map
-	 * 			'many' => true,		 		// If we have many or singel result
-	 * 			'bind' => array() 			// What else to bind in query
-	 * 		);
-	 * 
-	 * 		$user = $db->find('SELECT * FROM users WHERE id = ?', 1);
-	 * 		$db->map($user, array(
-	 * 			'foreignKey' => 'user_id',
-	 * 			'name' => 'details',
-	 * 			'many' => false
-	 * 		), 'SELECT * FROM users_details WHERE user_id = :user_id');
-	 * 		echo $user->details->eye_color;
-	 * 
-	 *	or you can pass multiple queries
-	 *		
-	 *		$db->map($user, array(
-	 *			'foreignKey' => 'user_id'
-	 *		), array(
-	 *			'details' => 'SELECT * FROM users_details WHERE user_id = :user_id',
-	 *			'gallery' => array(
-	 *				'SELECT * FROM users_gallery WHERE user_id = :user_id AND approved = :approved',
-	 *				array(
-	 *					'many' => true,
-	 *					'bind' => array(
-	 *						'approved' => 1
-	 *					)
-	 *				)
-	 *			)
-	 *		));
-	 *
-	 *	If you want to use different primary key you can pass primaryKey key in relation var
-	 *		
-	 *		$db->map($user, array(
-	 *			'primaryKey' => 'last_login_id',
-	 *			'foreignKey' => 'id'
-	 *		), 'SELECT * FROM users_logins WHERE id = :id');		
-	 *		
+	 * 		$products = $provider->fetchAll('SELECT * FROM products');
+	 * 		$provider->map($products, 'id', function($provider, $productIds){
+	 * 			$productCategories = $provider->fetchAll('SELECT * FROM products_categories WHERE product_id IN (:product_id)', array('product_id' => $productIds));
+	 * 			$provider->map($productCategories, 'category_id', function($provider, $productCategories){
+	 * 				$categories = $provider->fetchAll('SELECT * FROM categories WHERE id IN (?)', array($productCategories));
+	 * 				return array('category', 'id', $categories, false);
+	 * 			});
+	 * 			return array('categories', 'product_id', $productCategories, true);
+	 * 		});
 	 */
-	public function map($result, array $relation, $query) {
-		if(!isset($relation['primaryKey'])) {
-			$relation['primaryKey'] = 'id';
-		}
-		if(!isset($relation['foreignKey'])) {
-			throw new Exception('Foreign key is not defined');
-		}
-		if(!isset($relation['name'])) {
-			$relation['name'] = $relation['primaryKey'];
-		}
-		if(!isset($relation['many'])) {
-			$relation['many'] = false;
-		}
-		if(!isset($relation['bind'])) {
-			$bind = array();
-		} else {
-			$bind = $relation['bind'];
-			unset($relation['bind']);
-		}
-		
-		if(is_array($query)) {
-			foreach($query as $name=>$q) {
-				$rel = $relation;
-				$rel['name'] = $name;
-				if(is_array($q)) {
-					$rel = array_replace($rel, $q[1]);
-					$q = $q[0];
-				}
-				$this->map($result, $rel, $q);
-			}
-			return true;
-		}
-		
-		$pk = $relation['primaryKey'];
-		$fk = $relation['foreignKey'];
-		$name = $relation['name'];
-		$many = (bool)$relation['many'];
-		
-		if(!is_array($result)) {
-			$result = array($result);
-		}
+	public function map(&$result, $pk, $cb) {
 		$values = array();
-		foreach($result as $row) {
+		$res = $result;
+		if(!is_array($res)) {
+			if(!empty($res)) {
+				$res = array($res);
+			} else {
+				$res = array();
+			}
+		}
+		foreach($res as $row) {
 			$values[] = $row->{$pk};
 		}
-		
 		if(!empty($values)) {
-			$bind[$fk] = $values;
-			$all = $this->fetchAll($query, $bind);
+			list($name, $fk, $all, $many) = $cb($this, $values);
+			if(!is_array($all)) {
+				$all = array($all);
+			}
 		} else {
+			$all = false;
+			$many = false;
+		}
+		
+		if(empty($all)) {
 			$all = array();
 		}
 		
-		foreach($result as $pRow) {
+		foreach($res as &$pRow) {
 			$vals = array();
 			$v1 = $pRow->{$pk};
 			foreach($all as $fRow) {
@@ -495,9 +471,9 @@ class Provider extends PDO {
 			} else {
 				$first = reset($vals);
 				if(false === $first) {
-					$first = new \stdClass;
+					$first = new \stdClass();
 				}
-				$pRow->{$name} = (object)$first;
+				$pRow->{$name} = $first;
 			}
 		}
 	}
