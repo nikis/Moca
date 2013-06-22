@@ -4,8 +4,14 @@ use Memcache;
 
 class MemcacheCache extends Provider {
 	
+	private $memcache;
+	
 	public function setMemcache(Memcache $mem) {
 		$this->memcache = $mem;		
+	}
+	
+	public function getMemcache() {
+		return $this->memcache;
 	}
 	
 	protected function doGet($key) {

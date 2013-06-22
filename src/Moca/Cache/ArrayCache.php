@@ -4,7 +4,7 @@ use Exception;
 
 class ArrayCache extends Provider {
 	
-	protected $data = array();
+	private $data = array();
 	
 	public function enableBuffering($bool) {
 		throw new Exception('ArrayCache cannot use buffer');
