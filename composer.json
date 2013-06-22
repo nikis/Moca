@@ -1,13 +1,13 @@
 {
     "name": "moca/moca",
-    "description": "Easy code scaling for Silex framework",
-    "keywords": ["routing", "auto"],
+    "description": "Database and Cache providers",
+    "keywords": ["database", "cache"],
     "homepage": "https://github.com/nikis/Moca",
     "type": "library",
+    "license": "MIT",
     "authors": [
         {
-            "name": "Nikolay Tsanov",
-            "email": "nikigape@gmail.com"
+            "name": "Nikolay Tsanov"
         }
     ],
     "require": {
