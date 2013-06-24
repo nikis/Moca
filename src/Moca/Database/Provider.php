@@ -479,6 +479,48 @@ class Provider extends PDO {
 	}
 	
 	/**
+	 * Create temporary table with data from given table
+	 * @param string $table
+	 * @param boolean $withData
+	 * @param boolean $truncate
+	 * @return string
+	 */
+	public function createTemporaryTable($table, $withData=true, $truncate=true, $tempName=null) {
+		if(empty($tempName)) {
+			$tempName = $table.'_'.substr(md5(microtime(true)), 10);
+		}
+		$this->query('CREATE TEMPORARY TABLE `'.$tempName.'` LIKE `'.$table.'`');
+		if($withData) {
+			$this->query('INSERT INTO `'.$tempName.'` SELECT * FROM `'.$table.'`');
+		}
+		if($truncate) {
+			$this->truncateTable($table);
+		}
+		return $tempName;
+	}
+	
+	/**
+	 * Truncate table
+	 * @param $table
+	 */
+	public function truncateTable($table) {
+		$this->query('TRUNCATE TABLE `'.$table.'`');
+	}
+	
+	/**
+	 * Return result from FOUND_ROWS
+	 * @return integer
+	 */
+	public function found_rows() {
+		$row = $this->fetch_query('SELECT FOUND_ROWS() AS cnt');
+		if($row) {
+			return $row->cnt;
+		}		
+		return 0;
+	}
+	
+	
+	/**
 	 * Get meta data
 	 * @param string $tableName
 	 * @return array
