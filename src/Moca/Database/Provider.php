@@ -166,14 +166,14 @@ class Provider extends PDO {
 		if(!is_array($data)) {
 			$data = (array)$data;
 		}
-		if(false !== $index = array_search('_id', $data)) {
+		if(false !== $index = array_search('_id', $data, true)) {
 			$useId = 'id';
 			unset($data[$index]);
 		} else if(isset($data['_id'])) {
 			$useId = $data['_id'];
 			unset($data['_id']);
 		}
-		if(false !== $index = array_search('_load', $data)) {
+		if(false !== $index = array_search('_load', $data, true)) {
 			$autoload = true;
 			unset($data[$index]);
 		} 
