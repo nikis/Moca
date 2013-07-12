@@ -144,7 +144,7 @@ abstract class Provider {
 	public function modify($key, $cb, $lifetime=0) {
 		$data = $this->get($key);
 		if(false === $data) {
-			$data = $cb();
+			$data = call_user_func($cb);
 			if(false !== $data) {
 				$this->set($key, $data, $lifetime);
 			}
